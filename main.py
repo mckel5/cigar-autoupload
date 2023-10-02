@@ -1,6 +1,7 @@
 import datetime
 import tkinter as tk
 from pathlib import Path
+from shutil import rmtree
 from tkinter import messagebox
 
 import markdown
@@ -33,7 +34,12 @@ def main():
     window, text_fields, post_btn = initialize_gui()
     window.bind("<Control-Return>", create_post(text_fields))
     post_btn.bind("<Button-1>", create_post(text_fields))
-    window.mainloop()
+    try:
+        window.mainloop()
+    except Exception as e:
+        raise e
+    finally:
+        rmtree(tmp_dir)
 
 
 def initialize_gui() -> tuple[tk.Tk, dict[str, tk.Entry | tk.Text], tk.Button]:
@@ -117,13 +123,6 @@ def text_fields_to_json(text_fields: dict[str, tk.Entry | tk.Text]) -> dict[str,
     return json
 
 
-# def send_http_request(url: str, data: dict[str, str] = None, files: dict[str, any] = None):
-#     """Send the HTTP POST request to WordPress"""
-#     response = requests.post(url=url, data=data, files=files, auth=(username, password))
-#     if not response.ok:
-#         raise HttpRequestException(response.json())
-
-
 def get_schedule_date() -> datetime.datetime:
     """Generate a datetime object representing next Thursday at 6 AM."""
     today = datetime.date.today()
@@ -171,7 +170,7 @@ def convert_image_format(path: Path) -> Path:
 
 
 def drive2wordpress(url: str, caption: str) -> int | None:
-    """Transfer an image from Google Drive to Wordpress."""
+    """Transfer an image from Google Drive to WordPress."""
     if not url:
         return
 
