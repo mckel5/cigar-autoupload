@@ -1,4 +1,6 @@
 *
 !.gitignore
+!README*
+!requirements.txt
 !main.py
 !settings.yaml
