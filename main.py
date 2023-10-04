@@ -1,4 +1,5 @@
 import datetime
+import json
 import tkinter as tk
 from pathlib import Path
 from shutil import rmtree
@@ -19,12 +20,16 @@ tmp_dir = Path("tmp/")
 username = consts.username
 password = consts.password
 
+category_names = {
+
+}
+
 
 class HttpRequestException(Exception):
     pass
 
 
-class MissingDataException(Exception):
+class MalformedDataException(Exception):
     pass
 
 
@@ -85,8 +90,8 @@ def create_post(text_fields: dict[str, tk.Entry | tk.Text]) -> callable:
             response = requests.post(url=posts_url, data=json_data, auth=(username, password))
             if not response.ok:
                 raise HttpRequestException(response.json())
-        except MissingDataException as e:
-            messagebox.showerror("Missing Data", str(e))
+        except MalformedDataException as e:
+            messagebox.showerror("Malformed or Missing Data", str(e))
         except HttpRequestException as e:
             messagebox.showerror("HTTP Error", str(e))
         except Exception as e:
@@ -97,30 +102,27 @@ def create_post(text_fields: dict[str, tk.Entry | tk.Text]) -> callable:
                     widget.delete(0, tk.END)
                 else:
                     widget.delete("1.0", tk.END)
-            messagebox.showinfo("Success!")
+            # messagebox.showinfo("Success!")
 
     return inner
 
 
 def text_fields_to_json(text_fields: dict[str, tk.Entry | tk.Text]) -> dict[str, str]:
     """Convert the raw text data to a JSON object"""
-    json = {
+    json_data = {
         "title": text_fields["Headline"].get(),
         "content": markdown.markdown(text_fields["Content"].get("1.0", "end-1c").replace("\n", "\n\n")),
         "author": text_fields["Author ID"].get(),
-        "categories": text_fields["Categories"].get(),
+        "categories": category_names_to_ids(text_fields["Categories"].get()),
         "featured_media": drive2wordpress(text_fields["Image URL"].get(), caption=text_fields["Cutline"].get()),
         "status": "future",
         "date": get_schedule_date(),
     }
 
-    if not (json["title"] and json["content"] and json["author"]):
-        raise MissingDataException("Title, body, or author is invalid.")
+    if not (json_data["title"] and json_data["content"] and json_data["author"]):
+        raise MalformedDataException("Title, body, or author is invalid.")
 
-    if not json["categories"]:
-        raise MissingDataException("No categories provided.")
-
-    return json
+    return json_data
 
 
 def get_schedule_date() -> datetime.datetime:
@@ -177,6 +179,31 @@ def drive2wordpress(url: str, caption: str) -> int | None:
     filepath = download_image_from_drive(url)
     media_id = upload_media(filepath, caption)
     return media_id
+
+
+def category_names_to_ids(names: str) -> str:
+    """Takes a string of category names, separated by commas, and returns a string of the corresponding numeric IDs.
+    Category names are not case-sensitive."""
+    if not names:
+        raise MalformedDataException("No categories provided.")
+
+    names_list = names.split(",")
+    ids = []
+    with open("categories_slim.json", "r") as f:
+        categories = json.load(f)
+        for name in names_list:
+            # `filter` returns an iterable, so use `next` to get the element inside
+            try:
+                category = next(filter(lambda c: c["name"].lower() == name.lower(), categories))
+            except StopIteration:
+                raise MalformedDataException(f"No category matching \"{name}\"")
+            ids.append(category["id"])
+            parent_id = category["parent_id"]
+            while parent_id:
+                parent_category = next(filter(lambda c: c["id"] == parent_id, categories))
+                ids.append(parent_category["id"])
+                parent_id = parent_category["parent_id"]
+    return ",".join([str(_id) for _id in set(ids)])
 
 
 if __name__ == '__main__':
