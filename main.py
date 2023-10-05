@@ -5,9 +5,9 @@ from pathlib import Path
 from shutil import rmtree
 from tkinter import messagebox
 
-import markdown
 import requests
 from PIL import Image
+from markdown import markdown
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
@@ -50,7 +50,7 @@ def initialize_gui() -> tuple[tk.Tk, dict[str, tk.Entry | tk.Text], tk.Button]:
 
     text_fields = {
         "Headline": tk.Entry,
-        "Author ID": tk.Entry,
+        "Authors": tk.Entry,
         "Image URL": tk.Entry,
         "Cutline": tk.Entry,
         "Categories": tk.Entry,
@@ -107,16 +107,16 @@ def text_fields_to_json(text_fields: dict[str, tk.Entry | tk.Text]) -> dict[str,
     """Convert the raw text data to a JSON object"""
     json_data = {
         "title": text_fields["Headline"].get(),
-        "content": markdown.markdown(text_fields["Content"].get("1.0", "end-1c").replace("\n", "\n\n")),
-        "author": text_fields["Author ID"].get(),
+        "content": markdown(text_fields["Content"].get("1.0", "end-1c").replace("\n", "\n\n")),
+        "author": author_names_to_ids(text_fields["Authors"].get()),
         "categories": category_names_to_ids(text_fields["Categories"].get()),
         "featured_media": drive2wordpress(text_fields["Image URL"].get(), caption=text_fields["Cutline"].get()),
         "status": "future",
         "date": get_schedule_date(),
     }
 
-    if not (json_data["title"] and json_data["content"] and json_data["author"]):
-        raise MalformedDataException("Title, body, or author is invalid.")
+    if not (json_data["title"] and json_data["content"]):
+        raise MalformedDataException("Title or body is invalid.")
 
     return json_data
 
@@ -201,6 +201,35 @@ def category_names_to_ids(names: str) -> str:
                 ids.append(parent_category["id"])
                 parent_id = parent_category["parent"]
     return ",".join([str(_id) for _id in set(ids)])
+
+
+def author_names_to_ids(names: str) -> str:
+    """Takes a string of author names, separated by commas, and returns a string of the corresponding numeric IDs.
+    Author names are not case-sensitive."""
+    if not names:
+        raise MalformedDataException("No authors provided.")
+
+    names_list = names.split(",")
+    ids = []
+    with open("authors.json", "r") as f:
+        authors = json.load(f)
+        for name in names_list:
+            name = name.strip()
+            try:
+                # `filter` returns an iterable, so use `next` to get the element inside
+                author = next(filter(lambda a: a["display_name"].lower() == name.lower(), authors))
+            except StopIteration:
+                raise MalformedDataException(f"No author matching \"{name}\"")
+            ids.append(author["ID"])
+    return ",".join([str(_id) for _id in set(ids)])
+
+
+def format_body(body: str) -> str:
+    lines = body.split("\n")
+    lines = list(filter(lambda l: l != "", lines))
+    lines = list(map(lambda l: l.strip(), lines))
+    formatted_body = "\n\n".join(lines)
+    return markdown(formatted_body)
 
 
 if __name__ == '__main__':
