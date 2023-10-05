@@ -1,5 +1,6 @@
 import datetime
 import json
+import secrets
 import tkinter as tk
 from pathlib import Path
 from shutil import rmtree
@@ -15,6 +16,7 @@ import consts
 
 posts_url = "https://rhodycigar.com/wp-json/wp/v2/posts/"
 media_url = "https://rhodycigar.com/wp-json/wp/v2/media/"
+users_url = "https://rhodycigar.com/wp-json/wp/v2/users/"
 tmp_dir = Path("tmp/")
 
 username = consts.username
@@ -178,12 +180,14 @@ def drive2wordpress(url: str, caption: str) -> int | None:
 
 
 def category_names_to_ids(names: str) -> str:
-    """Takes a string of category names, separated by commas, and returns a string of the corresponding numeric IDs.
+    """Takes a string of category names, separated by semicolons (;), and returns a string of the corresponding numeric IDs.
     Category names are not case-sensitive."""
     if not names:
         raise MalformedDataException("No categories provided.")
 
-    names_list = names.split(",")
+    # TODO: also use API, though not strictly necessary
+
+    names_list = names.split(";")
     ids = []
     with open("categories.json", "r") as f:
         categories = json.load(f)
@@ -204,12 +208,15 @@ def category_names_to_ids(names: str) -> str:
 
 
 def author_names_to_ids(names: str) -> str:
-    """Takes a string of author names, separated by commas, and returns a string of the corresponding numeric IDs.
+    """Takes a string of author names, separated by semicolons (;), and returns a string of the corresponding numeric IDs.
     Author names are not case-sensitive."""
     if not names:
         raise MalformedDataException("No authors provided.")
 
-    names_list = names.split(",")
+    # TODO: get from API rather than json file
+    # requires "pagination"
+
+    names_list = names.split(";")
     ids = []
     with open("authors.json", "r") as f:
         authors = json.load(f)
@@ -218,10 +225,12 @@ def author_names_to_ids(names: str) -> str:
             try:
                 # `filter` returns an iterable, so use `next` to get the element inside
                 author = next(filter(lambda a: a["display_name"].lower() == name.lower(), authors))
+                ids.append(author["ID"])
             except StopIteration:
-                raise MalformedDataException(f"No author matching \"{name}\"")
-            ids.append(author["ID"])
-    return ",".join([str(_id) for _id in set(ids)])
+                # raise MalformedDataException(f"No author matching \"{name}\"")
+                _id = add_new_author(name)
+                ids.append(_id)
+    return ",".join(ids)
 
 
 def format_body(body: str) -> str:
@@ -230,6 +239,39 @@ def format_body(body: str) -> str:
     lines = list(map(lambda l: l.strip(), lines))
     formatted_body = "\n\n".join(lines)
     return markdown(formatted_body)
+
+
+def add_new_author(name: str) -> int:
+    first = " ".join(name.split(" ")[:-1])
+    last = name.split(" ")[-1]
+    author_username = first[0].lower() + last.lower()
+    email = author_username + "@nogood.net"
+    author_password = secrets.token_urlsafe(24)
+
+    data = {
+        "username": author_username,
+        "name": name,
+        "first_name": first,
+        "last_name": last,
+        "email": email,
+        "nickname": author_username,
+        "password": author_password,
+    }
+
+    response = requests.post(users_url, data=data, auth=(username, password))
+
+    if not response.ok:
+        raise HttpRequestException(response.json())
+
+    with open("authors.json", "w+") as f:
+        data = json.load(f)
+        data.append({
+            "ID": response.json()["id"],
+            "display_name": name
+        })
+        json.dump(data, f)
+
+    return response.json()["id"]
 
 
 if __name__ == '__main__':
