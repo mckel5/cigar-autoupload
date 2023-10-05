@@ -20,10 +20,6 @@ tmp_dir = Path("tmp/")
 username = consts.username
 password = consts.password
 
-category_names = {
-
-}
-
 
 class HttpRequestException(Exception):
     pass
@@ -189,20 +185,21 @@ def category_names_to_ids(names: str) -> str:
 
     names_list = names.split(",")
     ids = []
-    with open("categories_slim.json", "r") as f:
+    with open("categories.json", "r") as f:
         categories = json.load(f)
         for name in names_list:
-            # `filter` returns an iterable, so use `next` to get the element inside
+            name = name.strip()
             try:
+                # `filter` returns an iterable, so use `next` to get the element inside
                 category = next(filter(lambda c: c["name"].lower() == name.lower(), categories))
             except StopIteration:
                 raise MalformedDataException(f"No category matching \"{name}\"")
             ids.append(category["id"])
-            parent_id = category["parent_id"]
+            parent_id = category["parent"]
             while parent_id:
                 parent_category = next(filter(lambda c: c["id"] == parent_id, categories))
                 ids.append(parent_category["id"])
-                parent_id = parent_category["parent_id"]
+                parent_id = parent_category["parent"]
     return ",".join([str(_id) for _id in set(ids)])
 
 
