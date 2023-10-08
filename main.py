@@ -214,7 +214,7 @@ def author_names_to_ids(names: str) -> str:
         raise MalformedDataException("No authors provided.")
 
     # TODO: get from API rather than json file
-    # requires "pagination"
+    # requires "pagination" and may not be worth it
 
     names_list = names.split(";")
     ids = []
@@ -263,16 +263,19 @@ def add_new_author(name: str) -> int:
     if not response.ok:
         raise HttpRequestException(response.json())
 
-    with open("authors.json", "w+") as f:
-        data = json.load(f)
-        data.append({
-            "ID": response.json()["id"],
-            "display_name": name
-        })
-        json.dump(data, f)
+    with open("authors.json", "r") as f:
+        json_data = json.load(f)
+
+    json_data.append({
+        "ID": str(response.json()["id"]),
+        "display_name": name
+    })
+
+    with open("authors.json", "w") as f:
+        json.dump(json_data, f)
 
     return response.json()["id"]
 
 
 if __name__ == '__main__':
-    main()
+    add_new_author("Test Two")
