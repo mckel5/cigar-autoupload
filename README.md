@@ -3,11 +3,12 @@
 ## Setup
 
 1. Clone the project
-2. Create a `consts.py` file containing two variables: `username` (WordPress username) and `password` (auto-generated
-   application password)
-3. Go through the `pydrive` setup and get `client_secrets.json`
-4. Run `main.py` and a Tkinter window will appear
+2. Create a `consts.py` file containing the following variables:
+    - `username` (WordPress username)
+    - `password` (auto-generated application password)
+    - `domain_name` (domain name of your WordPress site, e.g. "myfunsite.com")
+3. Run `main.py` and a Tkinter window will appear
 
 ## Notes
 
-- `settings.yaml` is configured such that `pydrive` will save your Google credentials after the first time you log in
+- Your Google credentials will be saved after the first time you log in, preventing excessive OAuth popups
