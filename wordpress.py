@@ -6,7 +6,7 @@ import requests
 from PIL import Image
 
 import consts
-from exceptions import HttpRequestException, MalformedDataException
+from exceptions import MalformedDataException
 
 posts_url = f"https://{consts.domain_name}/wp-json/wp/v2/posts/"
 media_url = f"https://{consts.domain_name}/wp-json/wp/v2/media/"
@@ -15,9 +15,9 @@ users_url = f"https://{consts.domain_name}/wp-json/wp/v2/users/"
 
 def post(json_data: dict[str, str]) -> None:
     """Post an article to WordPress."""
-    response = requests.post(url=posts_url, data=json_data, auth=(consts.username, consts.password))
-    if not response.ok:
-        raise HttpRequestException(response.json())
+    response = requests.post(url=posts_url, data=json_data, auth=(consts.username, consts.password),
+                             headers=consts.request_headers)
+    response.raise_for_status()
 
 
 def upload_media(path: Path, caption: str = None) -> int:
@@ -25,9 +25,9 @@ def upload_media(path: Path, caption: str = None) -> int:
     path = convert_image_format(path)
     media = {'file': open(path, "rb")}
     data = {'caption': caption}
-    response = requests.post(url=media_url, data=data, files=media, auth=(consts.username, consts.password))
-    if not response.ok:
-        raise HttpRequestException(response.json())
+    response = requests.post(url=media_url, data=data, files=media, auth=(consts.username, consts.password),
+                             headers=consts.request_headers)
+    response.raise_for_status()
     return response.json()["id"]
 
 
@@ -112,10 +112,9 @@ def add_new_author(name: str) -> int:
         "password": author_password,
     }
 
-    response = requests.post(users_url, data=data, auth=(consts.username, consts.password))
-
-    if not response.ok:
-        raise HttpRequestException(response.json())
+    response = requests.post(users_url, data=data, auth=(consts.username, consts.password),
+                             headers=consts.request_headers)
+    response.raise_for_status()
 
     with open("authors.json", "r") as f:
         json_data = json.load(f)

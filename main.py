@@ -4,9 +4,11 @@ from pathlib import Path
 from shutil import rmtree
 from tkinter import messagebox
 
+from requests.exceptions import HTTPError
+
 import google_api
 import wordpress
-from exceptions import HttpRequestException, MalformedDataException
+from exceptions import MalformedDataException
 
 
 def main():
@@ -89,7 +91,7 @@ def create_post(text_fields: dict[str, tk.Entry | tk.Text]) -> callable:
             wordpress.post(json_data)
         except MalformedDataException as e:
             messagebox.showerror("Malformed or Missing Data", str(e))
-        except HttpRequestException as e:
+        except HTTPError as e:
             messagebox.showerror("HTTP Error", str(e))
         except Exception as e:
             messagebox.showerror("General Error", str(e))
