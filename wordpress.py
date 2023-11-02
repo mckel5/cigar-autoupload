@@ -4,6 +4,7 @@ from pathlib import Path
 
 import requests
 from PIL import Image
+from pillow_heif import register_heif_opener
 
 import consts
 from exceptions import MalformedDataException
@@ -11,6 +12,9 @@ from exceptions import MalformedDataException
 posts_url = f"https://{consts.domain_name}/wp-json/wp/v2/posts/"
 media_url = f"https://{consts.domain_name}/wp-json/wp/v2/media/"
 users_url = f"https://{consts.domain_name}/wp-json/wp/v2/users/"
+
+# Allow processing of HEIC/HEIF (iPhone) images
+register_heif_opener()
 
 
 def post(json_data: dict[str, str]) -> None:
