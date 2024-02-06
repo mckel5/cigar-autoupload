@@ -1,5 +1,6 @@
 import datetime
 import tkinter as tk
+import traceback
 from pathlib import Path
 from shutil import rmtree
 from tkinter import messagebox
@@ -90,11 +91,14 @@ def create_post(text_fields: dict[str, tk.Entry | tk.Text]) -> callable:
             json_data = text_fields_to_json(text_fields)
             wordpress.post(json_data)
         except MalformedDataException as e:
-            messagebox.showerror("Malformed or Missing Data", str(e))
+            messagebox.showerror("Malformed or Missing Data", traceback.format_exc())
+            print(traceback.format_exc())
         except HTTPError as e:
-            messagebox.showerror("HTTP Error", str(e))
+            messagebox.showerror("HTTP Error", traceback.format_exc())
+            print(traceback.format_exc())
         except Exception as e:
-            messagebox.showerror("General Error", str(e))
+            messagebox.showerror("General Error", traceback.format_exc())
+            print(traceback.format_exc())
         else:
             for widget in text_fields.values():
                 if type(widget) is tk.Entry:
