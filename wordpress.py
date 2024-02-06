@@ -92,8 +92,7 @@ def author_names_to_ids(names: str) -> str:
                 author = next(filter(lambda a: a["display_name"].lower() == name.lower(), authors))
                 ids.append(author["ID"])
             except StopIteration:
-                # raise MalformedDataException(f"No author matching \"{name}\"")
-                _id = add_new_author(name)
+                _id = str(add_new_author(name))
                 ids.append(_id)
     return ",".join(ids)
 
