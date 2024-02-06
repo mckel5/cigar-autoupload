@@ -72,13 +72,24 @@ def google_doc_to_html(url: str) -> str:
                 closing_tag = "</em>"
 
             if "link" in text_run.get('textStyle').keys():
-                opening_tag = f" <a href='{text_run.get('textStyle').get('link').get('url')}'>"
-                closing_tag = "</a> "
+                opening_tag = f"<a href='{text_run.get('textStyle').get('link').get('url')}'>"
+                closing_tag = "</a>"
 
-            content = text_run.get('content').strip()
+            content = text_run.get('content')
+
+            # If the content contains text and ends with a newline, it is the end of a paragraph
+            end_of_paragraph = "\n" in content.lstrip()
+
+            content = content.strip()
 
             if not content:
                 continue
+
+            opens_quote = content[-1] in ['“', '"']
+
+            # Workaround for the API occasionally ending a textRun in the middle of a sentence
+            if not (end_of_paragraph or opens_quote):
+                content += " "
 
             paragraph_body += opening_tag
             paragraph_body += content
