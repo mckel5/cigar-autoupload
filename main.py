@@ -22,7 +22,7 @@ def main():
     if not tmp_dir.exists():
         tmp_dir.mkdir()
 
-    row_data = google_api.load_sheet("...")
+    row_data = prompt_for_spreadsheet()
 
     window, text_fields = initialize_gui()
 
@@ -46,19 +46,56 @@ def main():
         rmtree(tmp_dir)
 
 
-def initialize_gui() -> tuple[tk.Tk, TextFields, tk.Button, tk.Button]:
+def prompt_for_spreadsheet() -> google_api.RowData:
+    """Set up the Tkinter window."""
+
+    window = tk.Tk()
+    window.geometry("800x100")
+
+    # label_frame = tk.Frame(master=window)
+    # label_frame.grid(row=0, padx=10, pady=10)
+    label = tk.Label(master=window, text="Enter spreadsheet URL:")
+    label.pack()
+
+    # field_frame = tk.Frame(master=window)
+    # field_frame.grid(row=1, padx=10, pady=10)
+    widget = tk.Entry(master=window)
+    widget.pack(fill=tk.X, expand=True)
+
+    spreadsheet_id = None
+
+    def get_spreadsheet_url(entry: tk.Entry) -> callable:
+        def inner(_):
+            url = entry.get()
+            if url:
+                nonlocal spreadsheet_id
+                spreadsheet_id = google_api.isolate_document_id(url)
+                window.destroy()
+            else:
+                messagebox.showerror("Invalid URL entered")
+                return
+
+        return inner
+
+    window.bind("<Return>", get_spreadsheet_url(widget))
+    window.mainloop()
+
+    return google_api.load_sheet(spreadsheet_id)
+
+
+def initialize_gui() -> tuple[tk.Tk, TextFields]:
     """Set up the Tkinter window."""
     window = tk.Tk()
     window.columnconfigure(1, weight=1)
 
     text_fields = {
         "Headline": tk.Entry,
-        "Authors": tk.Entry,
-        "Image URL": tk.Entry,
         "Cutline": tk.Entry,
         "Categories": tk.Entry,
-        "Content URL": tk.Entry,
+        "Authors": tk.Entry,
+        "Image URL": tk.Entry,
         "Content": tk.Text,
+        "(Content URL Override)": tk.Entry,
     }
 
     for row, (widget_id, widget) in enumerate(text_fields.items()):
@@ -107,7 +144,7 @@ def load_content_from_url(text_fields: TextFields) -> callable:
     """Load the text from a Google Doc into the "Content" field for editing."""
 
     def inner(_):
-        url = text_fields["Content URL"].get()
+        url = text_fields["(Content URL Override)"].get()
 
         if not url:
             return
@@ -169,7 +206,7 @@ def get_schedule_date() -> datetime.datetime:
     today = datetime.date.today()
     thursday = 3  # Sunday == 0
     next_thursday = today + datetime.timedelta((thursday - today.weekday()) % 7)
-    return datetime.datetime.combine(next_thursday, datetime.time(hour=7))
+    return datetime.datetime.combine(next_thursday, datetime.time(hour=8))
 
 
 def drive2wordpress(url: str, caption: str) -> int | None:

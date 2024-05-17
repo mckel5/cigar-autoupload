@@ -36,11 +36,13 @@ def authenticate(platform: str, version: str) -> googleapiclient.discovery.Resou
 
     return build(platform, version, credentials=creds)
 
+def isolate_document_id(url: str) -> Optional[str]:
+    return re.search("(?<=/d/)(.*?)(?=/)", url).group()
 
 def google_doc_to_html(url: str) -> str:
     """Download the raw HTML data from a Google Doc."""
     service = authenticate("docs", "v1")
-    document_id = re.search("(?<=/d/)(.*?)(?=/)", url).group()
+    document_id = isolate_document_id(url)
     document = service.documents().get(documentId=document_id).execute()
     body = document.get("body")
 
