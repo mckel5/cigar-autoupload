@@ -1,7 +1,6 @@
 import json
 import secrets
 from pathlib import Path
-
 import requests
 from PIL import Image
 from pillow_heif import register_heif_opener
@@ -12,6 +11,7 @@ from exceptions import MalformedDataException
 posts_url = f"https://{consts.domain_name}/wp-json/wp/v2/posts/"
 media_url = f"https://{consts.domain_name}/wp-json/wp/v2/media/"
 users_url = f"https://{consts.domain_name}/wp-json/wp/v2/users/"
+TIMEOUT_SECONDS = 5
 
 # Allow processing of HEIC/HEIF (iPhone) images
 register_heif_opener()
@@ -20,7 +20,7 @@ register_heif_opener()
 def post(json_data: dict[str, str]) -> None:
     """Post an article to WordPress."""
     response = requests.post(url=posts_url, data=json_data, auth=(consts.username, consts.password),
-                             headers=consts.request_headers)
+                             headers=consts.request_headers, timeout=TIMEOUT_SECONDS)
     response.raise_for_status()
 
 
@@ -30,7 +30,7 @@ def upload_media(path: Path, caption: str = None) -> int:
     media = {'file': open(path, "rb")}
     data = {'caption': caption}
     response = requests.post(url=media_url, data=data, files=media, auth=(consts.username, consts.password),
-                             headers=consts.request_headers)
+                             headers=consts.request_headers, timeout=TIMEOUT_SECONDS)
     response.raise_for_status()
     return response.json()["id"]
 
@@ -54,19 +54,19 @@ def category_names_to_ids(names: str) -> str:
 
     names_list = names.split(";")
     ids = []
-    with open("categories.json", "r") as f:
+    with open("categories.json", "r", encoding="utf-8") as f:
         categories = json.load(f)
         for name in names_list:
             name = name.strip()
             try:
                 # `filter` returns an iterable, so use `next` to get the element inside
-                category = next(filter(lambda c: c["name"].lower() == name.lower(), categories))
-            except StopIteration:
-                raise MalformedDataException(f"No category matching \"{name}\"")
+                category = next(filter(lambda c: c["name"].lower() == name.lower(), categories)) # pylint: disable=cell-var-from-loop
+            except StopIteration as e:
+                raise MalformedDataException(f"No category matching \"{name}\"") from e
             ids.append(category["id"])
             parent_id = category["parent"]
             while parent_id:
-                parent_category = next(filter(lambda c: c["id"] == parent_id, categories))
+                parent_category = next(filter(lambda c: c["id"] == parent_id, categories)) # pylint: disable=cell-var-from-loop
                 ids.append(parent_category["id"])
                 parent_id = parent_category["parent"]
     return ",".join([str(_id) for _id in set(ids)])
@@ -83,13 +83,13 @@ def author_names_to_ids(names: str) -> str:
 
     names_list = names.split(";")
     ids = []
-    with open("authors.json", "r") as f:
+    with open("authors.json", "r", encoding="utf-8") as f:
         authors = json.load(f)
         for name in names_list:
             name = name.strip()
             try:
                 # `filter` returns an iterable, so use `next` to get the element inside
-                author = next(filter(lambda a: a["display_name"].lower() == name.lower(), authors))
+                author = next(filter(lambda a: a["display_name"].lower() == name.lower(), authors)) # pylint: disable=cell-var-from-loop
                 ids.append(author["ID"])
             except StopIteration:
                 _id = str(add_new_author(name))
@@ -116,10 +116,10 @@ def add_new_author(name: str) -> int:
     }
 
     response = requests.post(users_url, data=data, auth=(consts.username, consts.password),
-                             headers=consts.request_headers)
+                             headers=consts.request_headers, timeout=TIMEOUT_SECONDS)
     response.raise_for_status()
 
-    with open("authors.json", "r") as f:
+    with open("authors.json", "r", encoding="utf-8") as f:
         json_data = json.load(f)
 
     json_data.append({
@@ -127,7 +127,7 @@ def add_new_author(name: str) -> int:
         "display_name": name
     })
 
-    with open("authors.json", "w") as f:
+    with open("authors.json", "w", encoding="utf-8") as f:
         json.dump(json_data, f)
 
     return response.json()["id"]

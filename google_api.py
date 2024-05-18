@@ -31,7 +31,7 @@ def authenticate(platform: str, version: str) -> googleapiclient.discovery.Resou
             flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
-        with open("token.json", "w") as token:
+        with open("token.json", "w", encoding="utf-8") as token:
             token.write(creds.to_json())
 
     return build(platform, version, credentials=creds)
@@ -43,7 +43,7 @@ def google_doc_to_html(url: str) -> str:
     """Download the raw HTML data from a Google Doc."""
     service = authenticate("docs", "v1")
     document_id = isolate_document_id(url)
-    document = service.documents().get(documentId=document_id).execute()
+    document = service.documents().get(documentId=document_id).execute() # pylint: disable=no-member
     body = document.get("body")
 
     html = ""
@@ -114,8 +114,8 @@ def download_image_from_drive(url: str) -> Path:
     """Download an image from Google Drive."""
     service = authenticate("drive", "v3")
     file_id = url.split("/")[-2]
-    request = service.files().get_media(fileId=file_id)
-    metadata = service.files().get(fileId=file_id).execute()
+    request = service.files().get_media(fileId=file_id) # pylint: disable=no-member
+    metadata = service.files().get(fileId=file_id).execute() # pylint: disable=no-member
 
     output_file = Path("tmp", metadata.get("name"))
 
@@ -136,7 +136,7 @@ def load_sheet(_id: str) -> RowData:
     """Get the rows of a Google Sheet."""
     try:
         service = authenticate("sheets", "v4")
-        sheet = service.spreadsheets()
+        sheet = service.spreadsheets() # pylint: disable=no-member
         result = sheet.get(
             spreadsheetId=_id,
             ranges="Sheet1!A1:O100",
