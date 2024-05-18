@@ -36,14 +36,18 @@ def authenticate(platform: str, version: str) -> googleapiclient.discovery.Resou
 
     return build(platform, version, credentials=creds)
 
+
 def isolate_document_id(url: str) -> Optional[str]:
+    """Given the URL of a Google Doc, isolate the document's unique ID."""
     return re.search("(?<=/d/)(.*?)(?=/)", url).group()
+
 
 def google_doc_to_html(url: str) -> str:
     """Download the raw HTML data from a Google Doc."""
     service = authenticate("docs", "v1")
     document_id = isolate_document_id(url)
-    document = service.documents().get(documentId=document_id).execute() # pylint: disable=no-member
+    # pylint: disable=no-member
+    document = service.documents().get(documentId=document_id).execute()
     body = document.get("body")
 
     html = ""
@@ -114,8 +118,9 @@ def download_image_from_drive(url: str) -> Path:
     """Download an image from Google Drive."""
     service = authenticate("drive", "v3")
     file_id = url.split("/")[-2]
-    request = service.files().get_media(fileId=file_id) # pylint: disable=no-member
-    metadata = service.files().get(fileId=file_id).execute() # pylint: disable=no-member
+    request = service.files().get_media(fileId=file_id)  # pylint: disable=no-member
+    # pylint: disable=no-member
+    metadata = service.files().get(fileId=file_id).execute()
 
     output_file = Path("tmp", metadata.get("name"))
 
@@ -136,7 +141,7 @@ def load_sheet(_id: str) -> RowData:
     """Get the rows of a Google Sheet."""
     try:
         service = authenticate("sheets", "v4")
-        sheet = service.spreadsheets() # pylint: disable=no-member
+        sheet = service.spreadsheets()  # pylint: disable=no-member
         result = sheet.get(
             spreadsheetId=_id,
             ranges="Sheet1!A1:O100",

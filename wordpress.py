@@ -19,18 +19,29 @@ register_heif_opener()
 
 def post(json_data: dict[str, str]) -> None:
     """Post an article to WordPress."""
-    response = requests.post(url=posts_url, data=json_data, auth=(consts.username, consts.password),
-                             headers=consts.request_headers, timeout=TIMEOUT_SECONDS)
+    response = requests.post(
+        url=posts_url,
+        data=json_data,
+        auth=(consts.username, consts.password),
+        headers=consts.request_headers,
+        timeout=TIMEOUT_SECONDS,
+    )
     response.raise_for_status()
 
 
 def upload_media(path: Path, caption: str = None) -> int:
     """Upload an image to WordPress and return the media ID."""
     path = convert_image_format(path)
-    media = {'file': open(path, "rb")}
-    data = {'caption': caption}
-    response = requests.post(url=media_url, data=data, files=media, auth=(consts.username, consts.password),
-                             headers=consts.request_headers, timeout=TIMEOUT_SECONDS)
+    media = {"file": open(path, "rb")}
+    data = {"caption": caption}
+    response = requests.post(
+        url=media_url,
+        data=data,
+        files=media,
+        auth=(consts.username, consts.password),
+        headers=consts.request_headers,
+        timeout=TIMEOUT_SECONDS,
+    )
     response.raise_for_status()
     return response.json()["id"]
 
@@ -60,13 +71,19 @@ def category_names_to_ids(names: str) -> str:
             name = name.strip()
             try:
                 # `filter` returns an iterable, so use `next` to get the element inside
-                category = next(filter(lambda c: c["name"].lower() == name.lower(), categories)) # pylint: disable=cell-var-from-loop
+                # pylint: disable=cell-var-from-loop
+                category = next(
+                    filter(lambda c: c["name"].lower() == name.lower(), categories)
+                )
             except StopIteration as e:
-                raise MalformedDataException(f"No category matching \"{name}\"") from e
+                raise MalformedDataException(f'No category matching "{name}"') from e
             ids.append(category["id"])
             parent_id = category["parent"]
             while parent_id:
-                parent_category = next(filter(lambda c: c["id"] == parent_id, categories)) # pylint: disable=cell-var-from-loop
+                # pylint: disable=cell-var-from-loop
+                parent_category = next(
+                    filter(lambda c: c["id"] == parent_id, categories)
+                )
                 ids.append(parent_category["id"])
                 parent_id = parent_category["parent"]
     return ",".join([str(_id) for _id in set(ids)])
@@ -88,8 +105,10 @@ def author_names_to_ids(names: str) -> str:
         for name in names_list:
             name = name.strip()
             try:
-                # `filter` returns an iterable, so use `next` to get the element inside
-                author = next(filter(lambda a: a["display_name"].lower() == name.lower(), authors)) # pylint: disable=cell-var-from-loop
+                # pylint: disable=cell-var-from-loop
+                author = next(
+                    filter(lambda a: a["display_name"].lower() == name.lower(), authors)
+                )
                 ids.append(author["ID"])
             except StopIteration:
                 _id = str(add_new_author(name))
@@ -115,17 +134,19 @@ def add_new_author(name: str) -> int:
         "password": author_password,
     }
 
-    response = requests.post(users_url, data=data, auth=(consts.username, consts.password),
-                             headers=consts.request_headers, timeout=TIMEOUT_SECONDS)
+    response = requests.post(
+        users_url,
+        data=data,
+        auth=(consts.username, consts.password),
+        headers=consts.request_headers,
+        timeout=TIMEOUT_SECONDS,
+    )
     response.raise_for_status()
 
     with open("authors.json", "r", encoding="utf-8") as f:
         json_data = json.load(f)
 
-    json_data.append({
-        "ID": str(response.json()["id"]),
-        "display_name": name
-    })
+    json_data.append({"ID": str(response.json()["id"]), "display_name": name})
 
     with open("authors.json", "w", encoding="utf-8") as f:
         json.dump(json_data, f)

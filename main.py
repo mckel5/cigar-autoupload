@@ -222,7 +222,7 @@ def drive2wordpress(url: str, caption: str) -> int | None:
 def clear_text_boxes(text_fields: TextFields):
     """Clear all text boxes in the GUI."""
     for widget in text_fields.values():
-        if type(widget) is tk.Entry:
+        if isinstance(widget, tk.Entry):
             widget.delete(0, tk.END)
         else:
             widget.delete("1.0", tk.END)
