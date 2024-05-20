@@ -15,7 +15,8 @@ from exceptions import MalformedDataException
 
 TextFields = dict[str, tk.Entry | tk.Text]
 
-row_index = 0
+row_index: int
+row_data: google_api.RowData
 
 
 def main():
@@ -24,6 +25,8 @@ def main():
     if not tmp_dir.exists():
         tmp_dir.mkdir()
 
+    global row_index, row_data
+    row_index = 0
     row_data = prompt_for_spreadsheet()
 
     window, text_fields = initialize_gui()
@@ -32,8 +35,8 @@ def main():
     # Manually load content from URL
     window.bind("<Alt-m>", load_content_from_url(text_fields))
     # Cursor up and down the spreadhseet
-    window.bind("<Alt-Left>", load_story(text_fields, row_data, row_offset=-1))
-    window.bind("<Alt-Right>", load_story(text_fields, row_data, row_offset=1))
+    window.bind("<Alt-Up>", load_story(text_fields, row_offset=-1))
+    window.bind("<Alt-Down>", load_story(text_fields, row_offset=1))
     # Trim the body (i.e. remove the first two lines, usually contains byline)
     window.bind("<Alt-t>", trim_article_body(text_fields))
     # Post article
@@ -116,16 +119,13 @@ def initialize_gui() -> tuple[tk.Tk, TextFields]:
     return window, text_fields
 
 
-def load_story(
-    text_fields: TextFields, row_data: google_api.RowData, row_offset: int
-) -> callable:
+def load_story(text_fields: TextFields, row_offset: int) -> callable:
     """Load the story at a given row in the spreadsheet."""
 
     def inner(_):
         clear_text_boxes(text_fields)
 
         global row_index
-
         row_index += row_offset
 
         story_data = google_api.get_story(row_data, row_index)
@@ -199,7 +199,7 @@ def create_post(text_fields: TextFields) -> callable:
             messagebox.showerror(title="General Error", message=str(e))
             print(traceback.format_exc())
         else:
-            clear_text_boxes(text_fields)
+            load_story(text_fields, row_offset=1)(_)
 
     return inner
 
