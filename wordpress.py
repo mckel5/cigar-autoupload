@@ -11,7 +11,9 @@ from exceptions import MalformedDataException
 posts_url = f"https://{consts.domain_name}/wp-json/wp/v2/posts/"
 media_url = f"https://{consts.domain_name}/wp-json/wp/v2/media/"
 users_url = f"https://{consts.domain_name}/wp-json/wp/v2/users/"
-TIMEOUT_SECONDS = 5
+
+# Timeout for all HTTP requests, including media upload/download
+REQUEST_TIMEOUT_SECONDS = 60
 
 # Allow processing of HEIC/HEIF (iPhone) images
 register_heif_opener()
@@ -24,7 +26,7 @@ def post(json_data: dict[str, str]) -> None:
         data=json_data,
         auth=(consts.username, consts.password),
         headers=consts.request_headers,
-        timeout=TIMEOUT_SECONDS,
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
 
@@ -40,7 +42,7 @@ def upload_media(path: Path, caption: str = None) -> int:
         files=media,
         auth=(consts.username, consts.password),
         headers=consts.request_headers,
-        timeout=TIMEOUT_SECONDS,
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
     return response.json()["id"]
@@ -139,7 +141,7 @@ def add_new_author(name: str) -> int:
         data=data,
         auth=(consts.username, consts.password),
         headers=consts.request_headers,
-        timeout=TIMEOUT_SECONDS,
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
 

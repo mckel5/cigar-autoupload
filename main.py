@@ -4,6 +4,8 @@ import traceback
 from pathlib import Path
 from shutil import rmtree
 from tkinter import messagebox
+from typing import Optional
+import threading
 
 from requests.exceptions import HTTPError
 
@@ -163,15 +165,38 @@ def create_post(text_fields: TextFields) -> callable:
     def inner(_):
         try:
             json_data = text_fields_to_json(text_fields)
-            wordpress.post(json_data)
+
+            if not (json_data["title"] and json_data["content"]):
+                raise MalformedDataException("Title or body is invalid.")
+
+            # Uploading media is typically a blocking operation that can take 15+ seconds.
+            # To remedy this, we make uploading a threaded background job so that the next article
+            # can be prepared in the meantime.
+
+            image_url = text_fields["Image URL"].get()
+            cutline = text_fields["Cutline"].get().strip()
+
+            class UploaderThread(threading.Thread):
+                def run(self):
+                    json_data["featured_media"] = drive2wordpress(
+                        url=image_url,
+                        caption=cutline,
+                    )
+
+                    # print(image_url, cutline)
+                    wordpress.post(json_data)
+
+            post_thread = UploaderThread()
+            post_thread.start()
+
         except MalformedDataException as e:
-            messagebox.showerror("Malformed or Missing Data", str(e))
+            messagebox.showerror(title="Malformed or Missing Data", message=str(e))
             print(traceback.format_exc())
         except HTTPError as e:
-            messagebox.showerror("HTTP Error", str(e))
+            messagebox.showerror(title="HTTP Error", message=str(e))
             print(traceback.format_exc())
         except Exception as e:
-            messagebox.showerror("General Error", str(e))
+            messagebox.showerror(title="General Error", message=str(e))
             print(traceback.format_exc())
         else:
             clear_text_boxes(text_fields)
@@ -180,23 +205,15 @@ def create_post(text_fields: TextFields) -> callable:
 
 
 def text_fields_to_json(text_fields: TextFields) -> dict[str, str]:
-    """Convert the raw text data to a JSON object."""
-    json_data = {
+    """Convert the raw text data from the GUI to a JSON object."""
+    return {
         "title": text_fields["Headline"].get().strip(),
         "content": text_fields["Content"].get("1.0", "end-1c"),
         "author": wordpress.author_names_to_ids(text_fields["Authors"].get()),
         "categories": wordpress.category_names_to_ids(text_fields["Categories"].get()),
-        "featured_media": drive2wordpress(
-            text_fields["Image URL"].get(), caption=text_fields["Cutline"].get().strip()
-        ),
         "status": "future",
         "date": get_schedule_date(),
     }
-
-    if not (json_data["title"] and json_data["content"]):
-        raise MalformedDataException("Title or body is invalid.")
-
-    return json_data
 
 
 def get_schedule_date() -> datetime.datetime:
@@ -209,10 +226,11 @@ def get_schedule_date() -> datetime.datetime:
     return datetime.datetime.combine(next_thursday, datetime.time(hour=8))
 
 
-def drive2wordpress(url: str, caption: str) -> int | None:
-    """Transfer an image from Google Drive to WordPress."""
+def drive2wordpress(url: str, caption: str) -> Optional[int]:
+    """Transfer an image from Google Drive to WordPress.
+    Returns the ID of the media provided by Wordpress."""
     if not url:
-        return
+        return None
 
     filepath = google_api.download_image_from_drive(url)
     media_id = wordpress.upload_media(filepath, caption)
