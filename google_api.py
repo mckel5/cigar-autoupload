@@ -158,13 +158,12 @@ def get_story(row_data: RowData, row_index: int) -> Optional[StoryDetails]:
     Returns `None` if the specified row is not a story."""
 
     LINK = 4
-    WORD_COUNT = 6
     AUTHOR = 7
     PHOTO_LINK = 13
 
     def is_story(row):
-        # No word count = not a story
-        return row and row["values"][WORD_COUNT].get("formattedValue", "").isdecimal()
+        # No hyperlink = not a story
+        return row and "values" in row and "hyperlink" in row["values"][LINK]
 
     row = row_data[row_index]
 
