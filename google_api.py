@@ -161,19 +161,38 @@ def get_story(row_data: RowData, row_index: int) -> Optional[StoryDetails]:
     AUTHOR = 7
     PHOTO_LINK = 13
 
-    def is_story(row):
-        # No hyperlink = not a story
-        return row and "values" in row and "hyperlink" in row["values"][LINK]
+    def get_link(values):
+        if not row:
+            return ""
+
+        link_cell = values[LINK]
+        if "hyperlink" in link_cell:
+            # This attribute appears if the hyperlink takes up the entire cell,
+            # which is most of the time
+            return link_cell["hyperlink"]
+        else:
+            # If the cell contains multiple types of data (e.g. a link and
+            # non-link text), Sheets will break it up into multiple "runs"
+            # which we must search for a "link" attribute
+            format_runs = values[LINK].get("textFormatRuns", [])
+            for run in format_runs:
+                if "link" in run.get("format", {}):
+                    return run["format"]["link"]["uri"]
+        return ""
 
     row = row_data[row_index]
 
-    if not is_story(row):
+    if not row:
         return None
 
     values = row["values"]
+    story_link = get_link(values)
+
+    if not story_link:
+        return None
 
     return {
-        "link": values[LINK].get("hyperlink", ""),
+        "link": story_link,
         "author": values[AUTHOR].get("formattedValue", ""),
         "photo_link": values[PHOTO_LINK].get("hyperlink", ""),
     }
