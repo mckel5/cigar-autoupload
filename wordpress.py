@@ -15,15 +15,11 @@ REQUEST_TIMEOUT_SECONDS = 60
 register_heif_opener()
 
 endpoints = {
-    "posts": f"https://{consts.domain_name}/wp-json/wp/v2/posts/",
-    "media": f"https://{consts.domain_name}/wp-json/wp/v2/media/",
-    "users": f"https://{consts.domain_name}/wp-json/wp/v2/users/",
-    "categories": f"https://{consts.domain_name}/wp-json/wp/v2/categories/",
+    "posts": f"https://{consts.domain_name}/wp-json/wp/v2/posts",
+    "media": f"https://{consts.domain_name}/wp-json/wp/v2/media",
+    "users": f"https://{consts.domain_name}/wp-json/wp/v2/users",
+    "categories": f"https://{consts.domain_name}/wp-json/wp/v2/categories",
 }
-
-CATEGORIES = requests.get(
-    url=f"{endpoints['categories']}?per_page=100", timeout=REQUEST_TIMEOUT_SECONDS
-).json()
 
 
 def post(json_data: dict[str, str]) -> None:
@@ -77,21 +73,38 @@ def category_names_to_ids(names_raw: str) -> str:
 
     for name in names:
         name = name.strip()
-        try:
-            # `filter` returns an iterable, so use `next` to get the element inside
-            # pylint: disable=cell-var-from-loop
-            category = next(
-                filter(lambda c: c["name"].lower() == name.lower(), CATEGORIES)
+        matches = requests.get(
+            url=f"{endpoints['categories']}?search={name}",
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        ).json()
+
+        if not matches:
+            raise MalformedDataException(f'No category matches "{name}"')
+
+        category = None
+
+        for match in matches:
+            if match["name"].lower() == name.lower():
+                category = match
+                break
+
+        if not category:
+            raise MalformedDataException(
+                f'No category exactly matches "{name}", but similar names were found'
             )
-        except StopIteration as e:
-            raise MalformedDataException(f'No category matching "{name}"') from e
+
         ids.append(category["id"])
-        parent_id = category["parent"]
-        while parent_id:
-            # pylint: disable=cell-var-from-loop
-            parent_category = next(filter(lambda c: c["id"] == parent_id, CATEGORIES))
+        parent_id: int = category["parent"]
+
+        # Automatically include parent categories as well
+        while parent_id != 0:
+            parent_category = requests.get(
+                url=f"{endpoints['categories']}/{parent_id}",
+                timeout=REQUEST_TIMEOUT_SECONDS,
+            ).json()
             ids.append(parent_category["id"])
             parent_id = parent_category["parent"]
+
     return ",".join([str(_id) for _id in ids])
 
 
