@@ -8,21 +8,28 @@ from pillow_heif import register_heif_opener
 import consts
 from exceptions import MalformedDataException
 
-posts_url = f"https://{consts.domain_name}/wp-json/wp/v2/posts/"
-media_url = f"https://{consts.domain_name}/wp-json/wp/v2/media/"
-users_url = f"https://{consts.domain_name}/wp-json/wp/v2/users/"
-
 # Timeout for all HTTP requests, including media upload/download
 REQUEST_TIMEOUT_SECONDS = 60
 
 # Allow processing of HEIC/HEIF (iPhone) images
 register_heif_opener()
 
+endpoints = {
+    "posts": f"https://{consts.domain_name}/wp-json/wp/v2/posts/",
+    "media": f"https://{consts.domain_name}/wp-json/wp/v2/media/",
+    "users": f"https://{consts.domain_name}/wp-json/wp/v2/users/",
+    "categories": f"https://{consts.domain_name}/wp-json/wp/v2/categories/",
+}
+
+CATEGORIES = requests.get(
+    url=f"{endpoints['categories']}?per_page=100", timeout=REQUEST_TIMEOUT_SECONDS
+).json()
+
 
 def post(json_data: dict[str, str]) -> None:
     """Post an article to WordPress."""
     response = requests.post(
-        url=posts_url,
+        url=endpoints["posts"],
         data=json_data,
         auth=(consts.username, consts.password),
         headers=consts.request_headers,
@@ -37,7 +44,7 @@ def upload_media(path: Path, caption: str = None) -> int:
     media = {"file": open(path, "rb")}
     data = {"caption": caption}
     response = requests.post(
-        url=media_url,
+        url=endpoints["media"],
         data=data,
         files=media,
         auth=(consts.username, consts.password),
@@ -57,42 +64,41 @@ def convert_image_format(path: Path) -> Path:
     return path
 
 
-def category_names_to_ids(names: str) -> str:
-    """Takes a string of category names, separated by semicolons (;), and returns a string of the corresponding numeric IDs.
+def category_names_to_ids(names_raw: str) -> str:
+    """Takes a string of category names (separated by `;`),
+    and returns a string of the corresponding numeric IDs (separated by `,`)
+    for use with the WordPress API.
     Category names are not case-sensitive."""
-    if not names:
+    if not names_raw:
         raise MalformedDataException("No categories provided.")
 
-    # TODO: also use API, though not strictly necessary
-
-    names_list = names.split(";")
+    names = names_raw.split(";")
     ids = []
-    with open("categories.json", "r", encoding="utf-8") as f:
-        categories = json.load(f)
-        for name in names_list:
-            name = name.strip()
-            try:
-                # `filter` returns an iterable, so use `next` to get the element inside
-                # pylint: disable=cell-var-from-loop
-                category = next(
-                    filter(lambda c: c["name"].lower() == name.lower(), categories)
-                )
-            except StopIteration as e:
-                raise MalformedDataException(f'No category matching "{name}"') from e
-            ids.append(category["id"])
-            parent_id = category["parent"]
-            while parent_id:
-                # pylint: disable=cell-var-from-loop
-                parent_category = next(
-                    filter(lambda c: c["id"] == parent_id, categories)
-                )
-                ids.append(parent_category["id"])
-                parent_id = parent_category["parent"]
-    return ",".join([str(_id) for _id in set(ids)])
+
+    for name in names:
+        name = name.strip()
+        try:
+            # `filter` returns an iterable, so use `next` to get the element inside
+            # pylint: disable=cell-var-from-loop
+            category = next(
+                filter(lambda c: c["name"].lower() == name.lower(), CATEGORIES)
+            )
+        except StopIteration as e:
+            raise MalformedDataException(f'No category matching "{name}"') from e
+        ids.append(category["id"])
+        parent_id = category["parent"]
+        while parent_id:
+            # pylint: disable=cell-var-from-loop
+            parent_category = next(filter(lambda c: c["id"] == parent_id, CATEGORIES))
+            ids.append(parent_category["id"])
+            parent_id = parent_category["parent"]
+    return ",".join([str(_id) for _id in ids])
 
 
 def author_names_to_ids(names: str) -> str:
-    """Takes a string of author names, separated by semicolons (;), and returns a string of the corresponding numeric IDs.
+    """Takes a string of author names (separated by `;`
+    and returns a string of the corresponding numeric IDs (separated by `,`)
+    for use with the WordPress API.
     Author names are not case-sensitive."""
     if not names:
         raise MalformedDataException("No authors provided.")
@@ -137,7 +143,7 @@ def add_new_author(name: str) -> int:
     }
 
     response = requests.post(
-        users_url,
+        endpoints["users"],
         data=data,
         auth=(consts.username, consts.password),
         headers=consts.request_headers,
