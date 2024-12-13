@@ -90,6 +90,7 @@ def prompt_for_spreadsheet() -> google_api.RowData:
 
 def initialize_gui() -> tuple[tk.Tk, TextFields]:
     """Set up the Tkinter window."""
+
     window = tk.Tk()
     window.columnconfigure(1, weight=1)
 
@@ -206,6 +207,7 @@ def create_post(text_fields: TextFields) -> callable:
 
 def text_fields_to_json(text_fields: TextFields) -> dict[str, str]:
     """Convert the raw text data from the GUI to a JSON object."""
+
     return {
         "title": text_fields["Headline"].get().strip(),
         "content": text_fields["Content"].get("1.0", "end-1c"),
@@ -218,6 +220,7 @@ def text_fields_to_json(text_fields: TextFields) -> dict[str, str]:
 
 def get_schedule_date() -> datetime.datetime:
     """Generate a `datetime` object representing the nearest Thursday at 7 AM."""
+
     # https://stackoverflow.com/a/6558571
 
     today = datetime.date.today()
@@ -229,6 +232,7 @@ def get_schedule_date() -> datetime.datetime:
 def drive2wordpress(url: str, caption: str) -> Optional[int]:
     """Transfer an image from Google Drive to WordPress.
     Returns the ID of the media provided by Wordpress."""
+
     if not url:
         return None
 
@@ -239,6 +243,7 @@ def drive2wordpress(url: str, caption: str) -> Optional[int]:
 
 def clear_text_boxes(text_fields: TextFields):
     """Clear all text boxes in the GUI."""
+
     for widget in text_fields.values():
         if isinstance(widget, tk.Entry):
             widget.delete(0, tk.END)

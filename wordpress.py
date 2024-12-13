@@ -24,6 +24,7 @@ endpoints = {
 
 def post(json_data: dict[str, str]) -> None:
     """Post an article to WordPress."""
+
     response = requests.post(
         url=endpoints["posts"],
         data=json_data,
@@ -36,6 +37,7 @@ def post(json_data: dict[str, str]) -> None:
 
 def upload_media(path: Path, caption: str = None) -> int:
     """Upload an image to WordPress and return the media ID."""
+
     path = convert_image_format(path)
     media = {"file": open(path, "rb")}
     data = {"caption": caption}
@@ -53,6 +55,7 @@ def upload_media(path: Path, caption: str = None) -> int:
 
 def convert_image_format(path: Path) -> Path:
     """Convert an image to JPG if it is not either JPG or PNG."""
+
     image = Image.open(path)
     if image.format not in ["JPG", "PNG"]:
         path = path.with_suffix(".jpg")
@@ -65,6 +68,7 @@ def category_names_to_ids(names_raw: str) -> str:
     and returns a string of the corresponding numeric IDs (separated by `,`)
     for use with the WordPress API.
     Category names are not case-sensitive."""
+
     if not names_raw:
         raise MalformedDataException("No categories provided.")
 
@@ -90,7 +94,7 @@ def category_names_to_ids(names_raw: str) -> str:
 
         if not category:
             raise MalformedDataException(
-                f'No category exactly matches "{name}", but similar names were found'
+                f'No category exactly matches "{name}", but similar results were found'
             )
 
         ids.append(category["id"])
@@ -108,40 +112,52 @@ def category_names_to_ids(names_raw: str) -> str:
     return ",".join([str(_id) for _id in ids])
 
 
-def author_names_to_ids(names: str) -> str:
-    """Takes a string of author names (separated by `;`
-    and returns a string of the corresponding numeric IDs (separated by `,`)
-    for use with the WordPress API.
-    Author names are not case-sensitive."""
-    if not names:
+def author_names_to_ids(name_raw: str) -> str:
+    """Takes an author names and returns a string of the corresponding
+    numeric ID for use with the WordPress API.
+    Author names are not case-sensitive.
+
+
+    Does not currently support multiple authors."""
+
+    if not name_raw:
         raise MalformedDataException("No authors provided.")
 
-    # TODO: get from API rather than json file
-    # requires "pagination" and may not be worth it
+    name = name_raw.strip()
+    matches = requests.get(
+        url=f"{endpoints['users']}?search={name}",
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    ).json()
 
-    names_list = names.split(";")
-    ids = []
-    with open("authors.json", "r", encoding="utf-8") as f:
-        authors = json.load(f)
-        for name in names_list:
-            name = name.strip()
-            try:
-                # pylint: disable=cell-var-from-loop
-                author = next(
-                    filter(lambda a: a["display_name"].lower() == name.lower(), authors)
-                )
-                ids.append(author["ID"])
-            except StopIteration:
-                _id = str(add_new_author(name))
-                ids.append(_id)
-    return ",".join(ids)
+    # Create new author if they don't already exist
+    if not matches:
+        return str(add_new_author(name))
+
+    author = None
+
+    for match in matches:
+        if match["name"].lower() == name.lower():
+            author = match
+            break
+
+    if not author:
+        raise MalformedDataException(
+            f'No author exactly matches "{name}", but similar results were found'
+        )
+
+    return author["id"]
 
 
 def add_new_author(name: str) -> int:
-    """Add a new author to the WordPress site."""
+    """Add a new author to the WordPress site.
+    Returns the new user's ID."""
+
+    # First name is classified as every name, separated by spaces, excluding
+    # the very last
     first = " ".join(name.split(" ")[:-1])
+    first_initial = first[0]
     last = name.split(" ")[-1]
-    author_username = first[0].lower() + last.lower()
+    author_username = first_initial.lower() + last.lower()
     email = author_username + "@nogood.net"
     author_password = secrets.token_urlsafe(24)
 

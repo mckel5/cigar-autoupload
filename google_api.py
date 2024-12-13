@@ -17,6 +17,7 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 def authenticate(platform: str, version: str) -> googleapiclient.discovery.Resource:
     """Authenticates with Google Drive and returns a Resource object."""
+
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first
@@ -39,11 +40,13 @@ def authenticate(platform: str, version: str) -> googleapiclient.discovery.Resou
 
 def isolate_document_id(url: str) -> Optional[str]:
     """Given the URL of a Google Doc, isolate the document's unique ID."""
+
     return re.search("(?<=/d/)(.*?)(?=/)", url).group()
 
 
 def google_doc_to_html(url: str) -> str:
     """Download the raw HTML data from a Google Doc."""
+
     service = authenticate("docs", "v1")
     document_id = isolate_document_id(url)
     # pylint: disable=no-member
@@ -116,6 +119,7 @@ def google_doc_to_html(url: str) -> str:
 
 def download_image_from_drive(url: str) -> Path:
     """Download an image from Google Drive."""
+
     service = authenticate("drive", "v3")
     file_id = url.split("/")[-2]
     request = service.files().get_media(fileId=file_id)  # pylint: disable=no-member
@@ -139,6 +143,7 @@ StoryDetails = dict[str, str]
 
 def load_sheet(_id: str) -> RowData:
     """Get the rows of a Google Sheet."""
+
     try:
         service = authenticate("sheets", "v4")
         sheet = service.spreadsheets()  # pylint: disable=no-member
