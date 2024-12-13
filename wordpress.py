@@ -4,6 +4,7 @@ from pathlib import Path
 import requests
 from PIL import Image
 from pillow_heif import register_heif_opener
+from tkinter.messagebox import askokcancel
 
 import consts
 from exceptions import MalformedDataException
@@ -131,6 +132,14 @@ def author_names_to_ids(name_raw: str) -> str:
 
     # Create new author if they don't already exist
     if not matches:
+        confirm = askokcancel(
+            title="Create new author?",
+            message=f'No author matches "{name}", so the app will create one.',
+        )
+
+        if not confirm:
+            raise MalformedDataException(f'No author matches "{name}"')
+
         return str(add_new_author(name))
 
     author = None
@@ -179,13 +188,5 @@ def add_new_author(name: str) -> int:
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
-
-    with open("authors.json", "r", encoding="utf-8") as f:
-        json_data = json.load(f)
-
-    json_data.append({"ID": str(response.json()["id"]), "display_name": name})
-
-    with open("authors.json", "w", encoding="utf-8") as f:
-        json.dump(json_data, f)
 
     return response.json()["id"]
